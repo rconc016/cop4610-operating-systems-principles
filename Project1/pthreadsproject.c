@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#define NUM_VALUES 20
-
-void createThreads(int threadCount);
-void* simpleThread(void* arg);
+#include "pthreadsproject.h"
 
 int sharedVariable = 0;
 
