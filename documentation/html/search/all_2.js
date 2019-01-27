@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['num_5fvalues',['NUM_VALUES',['../pthreadsproject_8h.html#a8c42fac10475243cf7c70de5f5d4973d',1,'pthreadsproject.h']]]
+  ['createthreads',['createThreads',['../pthreadsproject_8h.html#ad85b456bbeeea8d6ea626d556e33f853',1,'pthreadsproject.c']]],
+  ['cop4610_2doperating_2dsystems_2dprinciples',['cop4610-operating-systems-principles',['../md_README.html',1,'']]]
 ];

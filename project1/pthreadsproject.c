@@ -4,15 +4,24 @@ int sharedVariable = 0;
 
 int main(int argc, char* argv[])
 {
-    srand(time(NULL));
+    int threadCount = 0;
 
-    createThreads(4);
+    if (validate(argc, argv, &threadCount) == FALSE)
+    {
+        return ERROR;
+    }
 
-    return 0;
+    createThreads(threadCount);
+
+    return SUCCESS;
 }
 
 void createThreads(int threadCount)
 {
+    char message[LOG_SIZE];
+    sprintf(message, "Executing %d threads...", threadCount);
+    logInformation(message);
+
     pthread_t threads[threadCount];
     long index = 0;
 
@@ -27,8 +36,36 @@ void createThreads(int threadCount)
     }
 }
 
+int validate(int argc, char* argv[], int* threadCount)
+{
+    char message[LOG_SIZE];
+
+    if (argc - 1 != ARG_COUNT)
+    {
+        sprintf(message, "Invalid number of arguments passed. Expected: %d, Received: %d.", ARG_COUNT, argc - 1);
+        logFatal(message);
+
+        return FALSE;
+    }
+
+    char** ptr;
+    *threadCount = strtol(argv[1], ptr, BASE);
+
+    if (*threadCount <= 0)
+    {
+        sprintf(message, "Invalid argument passed. Use a number greater than 0.");
+        logFatal(message);
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 void* simpleThread(void* arg)
 {
+    srand(time(NULL));
+
     long which = (long) arg;
     int num, val;
 
@@ -48,7 +85,7 @@ void* simpleThread(void* arg)
 
     val = sharedVariable;
     
-    char message[50];
+    char message[LOG_SIZE];
     sprintf(message, "Thread %ld sees final value %d", which, val);
     logInformation(message);
 }
