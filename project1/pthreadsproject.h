@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include "../libs/logging/logging.h"
+
 #define NUM_VALUES 20 ///< The number of times each thread will increase the shared variable.
 
 /**

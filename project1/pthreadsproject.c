@@ -47,5 +47,8 @@ void* simpleThread(void* arg)
     }
 
     val = sharedVariable;
-    printf("Thread %ld sees final value %d\n", which, val);
+    
+    char message[50];
+    sprintf(message, "Thread %ld sees final value %d", which, val);
+    logInformation(message);
 }
