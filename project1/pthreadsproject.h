@@ -23,6 +23,7 @@
 #define LOG_SIZE 100  ///< The size of the string buffer when writing to the logger.
 #define BASE 10       ///< The base to use when parsing an integer from a string.
 #define NUM_VALUES 20 ///< The number of times each thread will increase the shared variable.
+#define PTHREAD_SYNC  ///< Flag to synchronize threads.
 
 /**
  * @brief Creates and executes the threads.

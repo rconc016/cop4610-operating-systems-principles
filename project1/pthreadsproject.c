@@ -1,5 +1,6 @@
 #include "pthreadsproject.h"
 
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 int sharedVariable = 0;
 
 int main(int argc, char* argv[])
@@ -23,16 +24,18 @@ void createThreads(int threadCount)
     logInformation(message);
 
     pthread_t threads[threadCount];
-    long index = 0;
+    int createIndex = 0;
+    int joinIndex = 0;
 
-    for (index = 0; index < threadCount; index++)
+    for (createIndex = 0; createIndex < threadCount; createIndex++)
     {
-        pthread_create(&threads[index], NULL, simpleThread, (void*) index);
+        long threadId = createIndex;
+        pthread_create(&threads[createIndex], NULL, simpleThread, (void*) threadId);
     }
 
-    for (index = 0; index < threadCount; index++)
+    for (joinIndex = 0; joinIndex < threadCount; joinIndex++)
     {
-        pthread_join(threads[index], NULL);
+        pthread_join(threads[joinIndex], NULL);
     }
 }
 
@@ -67,8 +70,11 @@ void* simpleThread(void* arg)
     srand(time(NULL));
 
     long which = (long) arg;
-    int num, val;
+    int num = 0;
 
+#ifdef PTHREAD_SYNC
+    pthread_mutex_lock(&mutex1);
+#endif
     for (num = 0; num < NUM_VALUES; num++)
     {
         if (rand() > RAND_MAX / 2)
@@ -76,18 +82,17 @@ void* simpleThread(void* arg)
             usleep(500);
         }
 
-        val = sharedVariable;
-
         char message[LOG_SIZE];
-        sprintf(message, "Thread %ld sees value %d", which, val);
+        sprintf(message, "Thread %ld sees value %d", which, sharedVariable);
         logInformation(message);
 
-        sharedVariable = val + 1;
+        sharedVariable++;
     }
 
-    val = sharedVariable;
-    
     char message[LOG_SIZE];
-    sprintf(message, "Thread %ld sees final value %d", which, val);
+    sprintf(message, "Thread %ld sees final value %d", which, sharedVariable);
     logInformation(message);
+#ifdef PTHREAD_SYNC
+    pthread_mutex_unlock(&mutex1);
+#endif
 }
