@@ -78,7 +78,9 @@ void* simpleThread(void* arg)
 
         val = sharedVariable;
 
-        //printf("*** thread %ld sees value %d\n", which, val);
+        char message[LOG_SIZE];
+        sprintf(message, "Thread %ld sees value %d", which, val);
+        logInformation(message);
 
         sharedVariable = val + 1;
     }
