@@ -45,11 +45,15 @@ int validate(int argc, char* argv[], int* threadCount);
 /**
  * @brief Increases the shared variable and displays the final result.
  * 
- * @param threadId The ID of the thread being executed.
+ * @param threadData Contains the ID of the thread being executed and the total number of threads executed.
  * @return void* The pthread library requires the function to be of the generic pointer type.
  */
-void* simpleThread(void* threadId);
+void* simpleThread(void* threadData);
 
+/**
+ * @brief Data sent to every thread call.
+ * 
+ */
 struct thread_data
 {
     int threadId;
