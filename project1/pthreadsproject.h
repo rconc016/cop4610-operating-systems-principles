@@ -49,3 +49,9 @@ int validate(int argc, char* argv[], int* threadCount);
  * @return void* The pthread library requires the function to be of the generic pointer type.
  */
 void* simpleThread(void* threadId);
+
+struct thread_data
+{
+    int threadId;
+    int threadCount;
+};

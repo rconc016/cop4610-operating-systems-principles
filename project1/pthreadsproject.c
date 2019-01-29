@@ -2,6 +2,7 @@
 
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 int sharedVariable = 0;
+int finishedThreadCount = 0;
 
 int main(int argc, char* argv[])
 {
@@ -29,8 +30,12 @@ void createThreads(int threadCount)
 
     for (createIndex = 0; createIndex < threadCount; createIndex++)
     {
-        long threadId = createIndex;
-        pthread_create(&threads[createIndex], NULL, simpleThread, (void*) threadId);
+        struct thread_data data = {
+            createIndex,
+            threadCount
+        };
+
+        pthread_create(&threads[createIndex], NULL, simpleThread, (void*) &data);
     }
 
     for (joinIndex = 0; joinIndex < threadCount; joinIndex++)
@@ -39,7 +44,7 @@ void createThreads(int threadCount)
     }
 }
 
-int validate(int argc, char* argv[], int* threadCount)
+int validate(int argc, char *argv[], int *threadCount)
 {
     char message[LOG_SIZE];
 
@@ -69,7 +74,7 @@ void* simpleThread(void* arg)
 {
     srand(time(NULL));
 
-    long which = (long) arg;
+    struct thread_data *data = (struct thread_data *) arg;
     int num = 0;
 
 #ifdef PTHREAD_SYNC
@@ -83,16 +88,20 @@ void* simpleThread(void* arg)
         }
 
         char message[LOG_SIZE];
-        sprintf(message, "Thread %ld sees value %d", which, sharedVariable);
+        sprintf(message, "Thread %d sees value %d", data->threadId, sharedVariable);
         logInformation(message);
 
         sharedVariable++;
     }
 
-    char message[LOG_SIZE];
-    sprintf(message, "Thread %ld sees final value %d", which, sharedVariable);
-    logInformation(message);
 #ifdef PTHREAD_SYNC
     pthread_mutex_unlock(&mutex1);
 #endif
+
+    finishedThreadCount++;
+    while (finishedThreadCount < data->threadCount);
+
+    char message[LOG_SIZE];
+    sprintf(message, "Thread %d sees final value %d", data->threadId, sharedVariable);
+    logInformation(message);
 }
