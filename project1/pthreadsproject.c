@@ -25,17 +25,16 @@ void createThreads(int threadCount)
     logInformation(message);
 
     pthread_t threads[threadCount];
+    struct thread_data data[threadCount];
     int createIndex = 0;
     int joinIndex = 0;
 
     for (createIndex = 0; createIndex < threadCount; createIndex++)
     {
-        struct thread_data data = {
-            createIndex,
-            threadCount
-        };
+        data[createIndex].threadId = createIndex;
+        data[createIndex].threadCount = threadCount;
 
-        pthread_create(&threads[createIndex], NULL, simpleThread, (void*) &data);
+        pthread_create(&threads[createIndex], NULL, simpleThread, (void*) &data[createIndex]);
     }
 
     for (joinIndex = 0; joinIndex < threadCount; joinIndex++)
