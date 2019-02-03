@@ -7,25 +7,25 @@ void logMessage(char* tag, char* message)
 
 void logDebug(char* message)
 {
-    logMessage("Debug", message);
+    logMessage(LOG_LEVEL_DEBUG, message);
 }
 
 void logInformation(char* message)
 {
-    logMessage("Information", message);
+    logMessage(LOG_LEVEL_INFO, message);
 }
 
 void logWarning(char* message)
 {
-    logMessage("Warning", message);
+    logMessage(LOG_LEVEL_WARN, message);
 }
 
 void logError(char* message)
 {
-    logMessage("Error", message);
+    logMessage(LOG_LEVEL_ERROR, message);
 }
 
 void logFatal(char* message)
 {
-    logMessage("Fatal", message);
+    logMessage(LOG_LEVEL_FATAL, message);
 }

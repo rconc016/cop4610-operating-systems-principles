@@ -8,6 +8,12 @@
  */
 #include <stdio.h>
 
+#define LOG_LEVEL_DEBUG "DEBUG" ///< Debug level log tag.
+#define LOG_LEVEL_INFO  "INFO"  ///< Information level log tag.
+#define LOG_LEVEL_WARN  "WARN"  ///< Warning level log tag.
+#define LOG_LEVEL_ERROR "ERROR" ///< Error level log tag.
+#define LOG_LEVEL_FATAL "FATAL" ///< Fatal level log tag.
+
 /**
  * @brief Logs a message with a prefix tag.
  * 

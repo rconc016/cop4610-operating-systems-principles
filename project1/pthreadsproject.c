@@ -1,9 +1,5 @@
 #include "pthreadsproject.h"
 
-pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-int sharedVariable = 0;
-int finishedThreadCount = 0;
-
 int main(int argc, char* argv[])
 {
     int threadCount = 0;
@@ -28,6 +24,8 @@ void createThreads(int threadCount)
     struct thread_data data[threadCount];
     int createIndex = 0;
     int joinIndex = 0;
+
+    pthread_barrier_init(&barrier, NULL, threadCount);
 
     for (createIndex = 0; createIndex < threadCount; createIndex++)
     {
@@ -77,8 +75,9 @@ void* simpleThread(void* arg)
     int num = 0;
 
 #ifdef PTHREAD_SYNC
-    pthread_mutex_lock(&mutex1);
+    pthread_mutex_lock(&mutex);
 #endif
+
     for (num = 0; num < NUM_VALUES; num++)
     {
         if (rand() > RAND_MAX / 2)
@@ -94,11 +93,9 @@ void* simpleThread(void* arg)
     }
 
 #ifdef PTHREAD_SYNC
-    pthread_mutex_unlock(&mutex1);
+    pthread_mutex_unlock(&mutex);
+    pthread_barrier_wait(&barrier);
 #endif
-
-    finishedThreadCount++;
-    while (finishedThreadCount < data->threadCount);
 
     char message[LOG_SIZE];
     sprintf(message, "Thread %d sees final value %d", data->threadId, sharedVariable);

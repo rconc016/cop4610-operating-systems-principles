@@ -23,7 +23,10 @@
 #define LOG_SIZE 100  ///< The size of the string buffer when writing to the logger.
 #define BASE 10       ///< The base to use when parsing an integer from a string.
 #define NUM_VALUES 20 ///< The number of times each thread will increase the shared variable.
-#define PTHREAD_SYNC  ///< Flag to synchronize threads.
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; ///< Locks the critical region to avoid race conditions.
+pthread_barrier_t barrier;                         ///< Synchronizes all threads to display final output together.
+int sharedVariable = 0;                            ///< Shared variable which all threads will read from and write to.
 
 /**
  * @brief Creates and executes the threads.
