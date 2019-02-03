@@ -53,8 +53,8 @@ int validate(int argc, char *argv[], int *threadCount)
         return FALSE;
     }
 
-    char** ptr;
-    *threadCount = strtol(argv[1], ptr, BASE);
+    char* ptr;
+    *threadCount = strtol(argv[1], &ptr, BASE);
 
     if (*threadCount <= 0)
     {
