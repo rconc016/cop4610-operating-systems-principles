@@ -16,6 +16,16 @@
 void noprintf(char* str, ...) {}
 #endif
 
+// number of elements in the legal character range array
+#define LEGAL_CHAR_SIZE 5
+
+// simple range structure
+typedef struct range
+{
+  int start;
+  int end;
+} range_t;
+
 // the file system partitions the disk into five parts:
 
 // 1. the superblock (one sector), which contains a magic number at
@@ -143,8 +153,50 @@ static int bitmap_reset(int start, int num, int ibit)
 // should not be more than MAX_NAME-1 in length
 static int illegal_filename(char* name)
 {
-  /* YOUR CODE */
-  return 1;
+  const int LEGAL = 0;
+  const int ILLEGAL = 1;
+  const char NULL_CHAR = '\0';
+  const range_t LEGAL_CHARS[LEGAL_CHAR_SIZE] = 
+  {
+    { '-', '.' },
+    { '_', '_' },
+    { '0', '9' },
+    { 'a', 'z' },
+    { 'A', 'Z' }
+  };
+
+  int index = 0;
+
+  while (name[index] != NULL_CHAR)
+  {
+    int is_legal = ILLEGAL;
+    char current_char = name[index];
+
+    int legal_char_index;
+    for (legal_char_index = 0; legal_char_index < LEGAL_CHAR_SIZE; legal_char_index++)
+    {
+      struct range current_range = LEGAL_CHARS[legal_char_index];
+
+      if (current_char >= current_range.start && current_char <= current_range.end)
+      {
+        is_legal = LEGAL;
+      }
+    }
+
+    if (is_legal == ILLEGAL)
+    {
+      return ILLEGAL;
+    }
+
+    index = index + 1;
+  }
+
+  if (index > MAX_NAME)
+  {
+    return ILLEGAL;
+  }
+
+  return LEGAL;
 }
 
 // return the child inode of the given file name 'fname' from the
