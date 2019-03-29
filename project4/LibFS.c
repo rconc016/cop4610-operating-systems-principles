@@ -157,7 +157,36 @@ static void bitmap_init(int start, int num, int nbits)
 // return -1 if the bitmap is already full (no more zeros)
 static int bitmap_first_unused(int start, int num, int nbits)
 {
-  /* YOUR CODE */
+  int sector_index = 0;
+  for (sector_index = 0; sector_index < num; sector_index = sector_index + 1)
+  {  
+    int current_sector = start + sector_index;
+
+    char buf[SECTOR_SIZE];
+    if (Disk_Read(current_sector, buf) < 0)
+    {
+      dprintf("... failed to read sector (start=%d, num=%d, nbits=%d)", start, current_sector, nbits);
+    }
+
+    int index = 0;
+    for (index = 0; index < nbits; index = index + 1)
+    {
+      if (buf[index] == 0)
+      {
+        buf[index] = 1;
+
+        if (Disk_Write(start, buf) < 0)
+        {
+          dprintf("... failed to set first unused bit (start=%d, num=%d, nbits=%d)\n", start, current_sector, nbits);
+        }
+
+        dprintf("... setting first unused bit (start=%d, num=%d, nbits=%d)\n", start, current_sector, nbits);
+
+        return index;
+      }
+    }
+  }
+
   return -1;
 }
 
