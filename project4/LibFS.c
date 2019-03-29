@@ -7,7 +7,7 @@
 #include "LibFS.h"
 
 // set to 1 to have detailed debug print-outs and 0 to have none
-#define FSDEBUG 0
+#define FSDEBUG 1
 
 #if FSDEBUG
 #define dprintf printf
@@ -127,7 +127,29 @@ static int check_magic()
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits)
 {
-  /* YOUR CODE */
+  int bits_left = nbits;
+
+  int sector_index = 0;
+  for (sector_index = 0; sector_index < num; sector_index = sector_index + 1)
+  {
+    char buf[SECTOR_SIZE];
+    memset(buf, 0, SECTOR_SIZE);
+    
+    int index = 0;
+    for (index = 0; index < bits_left && index < SECTOR_SIZE; index = index + 1)
+    {
+      buf[index] = 1;
+    }
+
+    bits_left = bits_left - index;
+    
+    if (Disk_Write(sector_index, buf) < 0)
+    {
+      dprintf("... failed to initialize bitmap (start=%d, num=%d, nbits=%d)\n", start, start + sector_index, index);
+    }
+
+    dprintf("... initialized bitmap (start=%d, num=%d, nbits=%d)\n", start, start + sector_index, index);
+  }
 }
 
 // set the first unused bit from a bitmap of 'nbits' bits (flip the
@@ -173,7 +195,7 @@ static int illegal_filename(char* name)
     char current_char = name[index];
 
     int legal_char_index;
-    for (legal_char_index = 0; legal_char_index < LEGAL_CHAR_SIZE; legal_char_index++)
+    for (legal_char_index = 0; legal_char_index < LEGAL_CHAR_SIZE; legal_char_index = legal_char_index + 1)
     {
       struct range current_range = LEGAL_CHARS[legal_char_index];
 
