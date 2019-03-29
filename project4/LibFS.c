@@ -130,7 +130,7 @@ static void bitmap_init(int start, int num, int nbits)
   int bits_left = nbits;
 
   int sector_index = 0;
-  for (sector_index = 0; sector_index < num; sector_index = sector_index + 1)
+  for (sector_index = start; sector_index < start + num; sector_index = sector_index + 1)
   {
     char buf[SECTOR_SIZE];
     memset(buf, 0, SECTOR_SIZE);
@@ -145,10 +145,10 @@ static void bitmap_init(int start, int num, int nbits)
     
     if (Disk_Write(sector_index, buf) < 0)
     {
-      dprintf("... failed to initialize bitmap (start=%d, num=%d, nbits=%d)\n", start, start + sector_index, index);
+      dprintf("... failed to initialize bitmap (start=%d, sector=%d, nbits=%d)\n", start, sector_index, index);
     }
 
-    dprintf("... initialized bitmap (start=%d, num=%d, nbits=%d)\n", start, start + sector_index, index);
+    dprintf("... initialized bitmap (start=%d, sector=%d, nbits=%d)\n", start, sector_index, index);
   }
 }
 
@@ -158,31 +158,31 @@ static void bitmap_init(int start, int num, int nbits)
 static int bitmap_first_unused(int start, int num, int nbits)
 {
   int sector_index = 0;
-  for (sector_index = 0; sector_index < num; sector_index = sector_index + 1)
+  for (sector_index = start; sector_index < start + num; sector_index = sector_index + 1)
   {  
-    int current_sector = start + sector_index;
-
     char buf[SECTOR_SIZE];
-    if (Disk_Read(current_sector, buf) < 0)
+    if (Disk_Read(sector_index, buf) < 0)
     {
-      dprintf("... failed to read sector (start=%d, num=%d, nbits=%d)", start, current_sector, nbits);
+      dprintf("... failed to read sector (start=%d, sector=%d, nbits=%d)\n", start, sector_index, nbits);
     }
 
     int index = 0;
-    for (index = 0; index < nbits; index = index + 1)
+    for (index = 0; index < nbits && index < SECTOR_SIZE; index = index + 1)
     {
       if (buf[index] == 0)
       {
         buf[index] = 1;
 
-        if (Disk_Write(start, buf) < 0)
+        if (Disk_Write(sector_index, buf) < 0)
         {
-          dprintf("... failed to set first unused bit (start=%d, num=%d, nbits=%d)\n", start, current_sector, nbits);
+          dprintf("... failed to set first unused bit (start=%d, sector=%d, nbits=%d)\n", start, sector_index, nbits);
         }
 
-        dprintf("... setting first unused bit (start=%d, num=%d, nbits=%d)\n", start, current_sector, nbits);
+        int bit_index = SECTOR_SIZE * (sector_index - start) + index;
 
-        return index;
+        dprintf("... setting first unused bit (start=%d, sector=%d, nbits=%d, index=%d)\n", start, sector_index, nbits, bit_index);
+
+        return bit_index;
       }
     }
   }
