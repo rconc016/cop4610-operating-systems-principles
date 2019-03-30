@@ -194,8 +194,30 @@ static int bitmap_first_unused(int start, int num, int nbits)
 // 'start' sector; return 0 if successful, -1 otherwise
 static int bitmap_reset(int start, int num, int ibit)
 {
-  /* YOUR CODE */
-  return -1;
+  int sector = start + ibit / SECTOR_SIZE;
+
+  if (sector > num) 
+  {
+    dprintf("... error: ibit %d is out of bitmap bounds (start=%d, num=%d)\n", ibit, start, num);
+    return -1;
+  }
+
+  char buf[SECTOR_SIZE];
+  if (Disk_Read(sector, buf) < 0)
+  {
+    dprintf("... error: failed to read sector %d\n", sector);
+    return -1;
+  }
+
+  int bit_index = ibit % SECTOR_SIZE;
+  buf[bit_index] = 0;
+  if (Disk_Write(sector, buf) < 0)
+  {
+    dprintf("... error: failed to write sector %d\n", sector);
+  }
+
+  dprintf("... successfuly reset bit %d (sector=%d)\n", bit_index, sector);
+  return 0;
 }
 
 // return 1 if the file name is illegal; otherwise, return 0; legal
