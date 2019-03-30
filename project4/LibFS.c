@@ -757,7 +757,41 @@ int File_Create(char* file)
 
 int File_Unlink(char* file)
 {
-  /* YOUR CODE */
+  dprintf("File_Unlink('%s'):\n", file);
+  int child_inode;
+  char last_fname[MAX_NAME];
+  int parent_inode = follow_path(file, &child_inode, last_fname);
+  
+  if (parent_inode >= 0) 
+  {
+    if (child_inode >= 0) 
+    {
+      if (remove_inode(0, parent_inode, child_inode) >= 0)
+      {
+        dprintf("... successfully unlinked file: '%s'\n", file);
+        return 0;
+      }
+
+      else
+      {
+        dprintf("... error: failed to unlink file: '%s'\n", file);
+        return -1;
+      }
+    }
+
+    else
+    {
+      dprintf("... error: file '%s' does not exist, failed to create\n", file);
+      osErrno = E_NO_SUCH_FILE;
+      return -1;
+    }    
+  }
+
+  else 
+  {
+    dprintf("... error: failed to find parent_inode while unlinking file\n");
+  }
+
   return -1;
 }
 
