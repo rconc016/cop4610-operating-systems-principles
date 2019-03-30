@@ -509,8 +509,81 @@ int create_file_or_directory(int type, char* pathname)
 // -1 if general error, -2 if directory not empty, -3 if wrong type
 int remove_inode(int type, int parent_inode, int child_inode)
 {
-  /* YOUR CODE */
-  return -1;
+  if (bitmap_reset(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, child_inode) < 0)
+  {
+    dprintf("... error: failed to reset inode bitmap index %d\n", child_inode);
+    return -1;
+  }
+
+  // load the disk sector containing the child inode
+  int inode_sector = INODE_TABLE_START_SECTOR + child_inode / INODES_PER_SECTOR;
+  char inode_buffer[SECTOR_SIZE];
+  if (Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+  dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
+
+  // get the child inode
+  int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
+  int offset = child_inode-inode_start_entry;
+  assert(0 <= offset && offset < INODES_PER_SECTOR);
+  inode_t* child = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
+
+  if (type == 1 && child->size > 0)
+  {
+    dprintf("... error: directory is not empty\n");
+    return -2;
+  }
+
+  // get the parent inode
+  inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
+  offset = parent_inode-inode_start_entry;
+  assert(0 <= offset && offset < INODES_PER_SECTOR);
+  inode_t* parent = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
+  dprintf("... get parent inode %d (size=%d, type=%d)\n",
+	 parent_inode, parent->size, parent->type);
+
+  int group = parent->size/DIRENTS_PER_SECTOR;
+
+  int sector_index = 0;
+  for (sector_index = 0; sector_index < MAX_SECTORS_PER_FILE; sector_index = sector_index + 1)
+  {
+    char dirents_buffer[SECTOR_SIZE];
+    if (Disk_Read(parent->data[sector_index], dirents_buffer) < 0)
+    {
+      return -1;
+    }
+
+    int dirent_index = 0;
+    for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR; dirent_index = dirent_index + 1)
+    {
+      dirent_t* dirent = &((dirent_t*)dirents_buffer)[dirent_index];
+      if (dirent->inode == child_inode)
+      {
+        memset(dirent->fname, 0, MAX_NAME);
+        dirent->inode = -1;
+
+        if (Disk_Write(parent->data[sector_index], dirents_buffer) < 0)
+        {
+          return -1;
+        }
+
+        dirent_index = DIRENTS_PER_SECTOR;
+        sector_index = MAX_SECTORS_PER_FILE;
+      }
+    }
+  }
+
+  if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
+  {
+    dprintf("... error: failed to reset inode bitmap index %d\n", child_inode);
+    return -1;
+  }
+
+  // update parent inode and write to disk
+  parent->size--;
+  if (Disk_Write(inode_sector, inode_buffer) < 0) return -1;
+  dprintf("... update parent inode on disk sector %d\n", inode_sector);
+
+  return 0;
 }
 
 // representing an open file
