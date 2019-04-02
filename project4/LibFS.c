@@ -524,6 +524,7 @@ int remove_inode(int type, int parent_inode, int child_inode)
   // get the child inode
   int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
   int offset = child_inode-inode_start_entry;
+  dprintf("... debug: inode_start_entry=%d, inode_sector=%d, INODE_TABLE_START_SECTOR=%d, INODES_PER_SECTOR=%d\n", inode_start_entry, inode_sector, INODE_TABLE_START_SECTOR, INODES_PER_SECTOR);
   assert(0 <= offset && offset < INODES_PER_SECTOR);
   inode_t* child = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
 
@@ -755,46 +756,6 @@ int File_Create(char* file)
   return create_file_or_directory(0, file);
 }
 
-int File_Unlink(char* file)
-{
-  dprintf("File_Unlink('%s'):\n", file);
-  int child_inode;
-  char last_fname[MAX_NAME];
-  int parent_inode = follow_path(file, &child_inode, last_fname);
-  
-  if (parent_inode >= 0) 
-  {
-    if (child_inode >= 0) 
-    {
-      if (remove_inode(0, parent_inode, child_inode) >= 0)
-      {
-        dprintf("... successfully unlinked file: '%s'\n", file);
-        return 0;
-      }
-
-      else
-      {
-        dprintf("... error: failed to unlink file: '%s'\n", file);
-        return -1;
-      }
-    }
-
-    else
-    {
-      dprintf("... error: file '%s' does not exist, failed to create\n", file);
-      osErrno = E_NO_SUCH_FILE;
-      return -1;
-    }    
-  }
-
-  else 
-  {
-    dprintf("... error: failed to find parent_inode while unlinking file\n");
-  }
-
-  return -1;
-}
-
 int File_Open(char* file)
 {
   dprintf("File_Open('%s'):\n", file);
@@ -838,6 +799,58 @@ int File_Open(char* file)
     osErrno = E_NO_SUCH_FILE;
     return -1;
   }  
+}
+
+/**
+ * @brief Unlinks (removes) a file or directory if if's empty.
+ * 
+ * @param type The type of file to unlink.
+ * @param path The path to the file/directory.
+ * @return int 0 if the operation was successful, -1 if there was problem.
+ */
+int unlink_file_or_directory(int type, char* path)
+{
+  int child_inode;
+  char last_fname[MAX_NAME];
+  int parent_inode = follow_path(path, &child_inode, last_fname);
+  
+  if (parent_inode >= 0) 
+  {
+    if (child_inode >= 0) 
+    {
+      if (remove_inode(type, parent_inode, child_inode) >= 0)
+      {
+        dprintf("... successfully unlinked file/directory: '%s'\n", path);
+        return 0;
+      }
+
+      else
+      {
+        dprintf("... error: failed to unlink file/directory: '%s'\n", path);
+        return -1;
+      }
+    }
+
+    else
+    {
+      dprintf("... error: file/directory '%s' does not exist, failed to unlink\n", path);
+      osErrno = E_NO_SUCH_FILE;
+      return -1;
+    }    
+  }
+
+  else 
+  {
+    dprintf("... error: failed to find parent_inode while unlinking file/directory\n");
+  }
+
+  return -1;
+}
+
+int File_Unlink(char* file)
+{
+  dprintf("File_Unlink('%s'):\n", file);  
+  return unlink_file_or_directory(0, file);
 }
 
 int File_Read(int fd, void* buffer, int size)
@@ -885,8 +898,8 @@ int Dir_Create(char* path)
 
 int Dir_Unlink(char* path)
 {
-  /* YOUR CODE */
-  return -1;
+  dprintf("Dir_Unlink('%s'):\n", path);  
+  return unlink_file_or_directory(1, path);
 }
 
 int Dir_Size(char* path)
