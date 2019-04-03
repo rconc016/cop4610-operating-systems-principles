@@ -12,11 +12,9 @@ struct _test
   void (*function)();
 } typedef test_t;
 
-#define TEST_DISK_FILE "test_disk_file"
-
 void fs_boot_should_return_success()
 {
-  char *file = TEST_DISK_FILE;
+  char *file = "fs_boot_should_return_success.disk";
   char inode_bitmap[SECTOR_SIZE];
   char sector_bitmap[SECTOR_SIZE];
   char root_inode_data[SECTOR_SIZE];
@@ -45,17 +43,35 @@ void fs_boot_with_empty_filename_should_return_error()
 
 void file_create_should_succeed()
 {
-  FS_Boot(TEST_DISK_FILE);
+  char inode_bitmap[SECTOR_SIZE];
+  char root_inode_data[SECTOR_SIZE];
+  char file_inode_data[SECTOR_SIZE];
+  inode_t *root_inode;
+  inode_t *file_inode;
+  FS_Boot("file_create_should_succeed.disk");
+
+  int result = File_Create("/test-file");
+  Disk_Read(INODE_BITMAP_START_SECTOR, inode_bitmap);
+  Disk_Read(INODE_TABLE_START_SECTOR, root_inode_data);
+  Disk_Read(INODE_TABLE_START_SECTOR + 1, file_inode_data);
+  root_inode = (inode_t*)root_inode_data;
+  file_inode = (inode_t*)file_inode_data;
+
+  assert(result == 0);
+  assert(inode_bitmap[1] == 1);
+  assert(root_inode->size == 1 && root_inode->type == 1);
+  assert(file_inode->size == 0 && file_inode->type == 0);
 }
 
-#define TESTS_NUM 2
+#define TESTS_NUM 3
 
 int main(int argc, char *argv[])
 {
   test_t tests[TESTS_NUM] = 
   {
     {"fs_boot_should_return_success", &fs_boot_should_return_success},
-    {"fs_boot_with_empty_filename_should_return_error", &fs_boot_with_empty_filename_should_return_error}
+    {"fs_boot_with_empty_filename_should_return_error", &fs_boot_with_empty_filename_should_return_error},
+    {"file_create_should_succeed", &file_create_should_succeed}
   };
 
   int index = 0;
