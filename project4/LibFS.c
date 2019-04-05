@@ -524,9 +524,15 @@ int remove_inode(int type, int parent_inode, int child_inode)
   // get the child inode
   int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
   int offset = child_inode-inode_start_entry;
-  dprintf("... debug: inode_start_entry=%d, inode_sector=%d, INODE_TABLE_START_SECTOR=%d, INODES_PER_SECTOR=%d\n", inode_start_entry, inode_sector, INODE_TABLE_START_SECTOR, INODES_PER_SECTOR);
+  assert(offset >= 0 && offset < INODES_PER_SECTOR);
   assert(0 <= offset && offset < INODES_PER_SECTOR);
   inode_t* child = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
+
+  if (type != child->type)
+  {
+    dprintf("... error: unlinking file with type %d, but found file with type %d\n", type, child->type);
+    return -1;
+  }
 
   if (type == 1 && child->size > 0)
   {
