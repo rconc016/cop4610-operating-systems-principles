@@ -541,6 +541,10 @@ int remove_inode(int type, int parent_inode, int child_inode)
   }
 
   // get the parent inode
+  inode_sector = INODE_TABLE_START_SECTOR + parent_inode / INODES_PER_SECTOR;
+  if (Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+  dprintf("... load inode table for parent inode from disk sector %d\n", inode_sector);
+
   inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
   offset = parent_inode-inode_start_entry;
   assert(0 <= offset && offset < INODES_PER_SECTOR);
