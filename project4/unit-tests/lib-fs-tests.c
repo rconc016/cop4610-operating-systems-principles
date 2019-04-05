@@ -100,7 +100,6 @@ void file_unlink_should_succeed()
   char inode_table[SECTOR_SIZE];
   char dirent_buffer[SECTOR_SIZE];
   inode_t *root_inode;
-  inode_t *dir_inode;
   dirent_t *dirent;
 
   FS_Boot("file_unlink_should_succeed.disk");
@@ -110,7 +109,6 @@ void file_unlink_should_succeed()
   Disk_Read(INODE_BITMAP_START_SECTOR, inode_bitmap);
   Disk_Read(INODE_TABLE_START_SECTOR, inode_table);
   root_inode = (inode_t*)inode_table;
-  dir_inode = (inode_t*)(inode_table + 1 * sizeof(inode_t));
   Disk_Read(root_inode->data[0], dirent_buffer);
   dirent = (dirent_t*)dirent_buffer;
 
@@ -127,7 +125,6 @@ void dir_unlink_should_succeed()
   char inode_table[SECTOR_SIZE];
   char dirent_buffer[SECTOR_SIZE];
   inode_t *root_inode;
-  inode_t *dir_inode;
   dirent_t *dirent;
 
   FS_Boot("dir_unlink_should_succeed.disk");
@@ -137,7 +134,6 @@ void dir_unlink_should_succeed()
   Disk_Read(INODE_BITMAP_START_SECTOR, inode_bitmap);
   Disk_Read(INODE_TABLE_START_SECTOR, inode_table);
   root_inode = (inode_t*)inode_table;
-  dir_inode = (inode_t*)(inode_table + 1 * sizeof(inode_t));
   Disk_Read(root_inode->data[0], dirent_buffer);
   dirent = (dirent_t*)dirent_buffer;
 
@@ -147,16 +143,10 @@ void dir_unlink_should_succeed()
   assert(dirent->inode == -1 && strcmp(dirent->fname, "") == 0);
 }
 
-dir_unlink_inner_dir_should_succeed()
+void dir_unlink_inner_dir_should_succeed()
 {
   char *first_dir = "/first-dir";
   char *second_dir = "/first-dir/second-dir";
-  char inode_bitmap[SECTOR_SIZE];
-  char inode_table[SECTOR_SIZE];
-  char dirent_buffer[SECTOR_SIZE];
-  inode_t *root_inode;
-  inode_t *dir_inode;
-  dirent_t *dirent;
 
   FS_Boot("dir_unlink_inner_dir_should_succeed.disk");
   File_Create("/first-file");
@@ -165,17 +155,8 @@ dir_unlink_inner_dir_should_succeed()
   Dir_Create(second_dir);
 
   int result = Dir_Unlink(second_dir);
-  Disk_Read(INODE_BITMAP_START_SECTOR, inode_bitmap);
-  Disk_Read(INODE_TABLE_START_SECTOR, inode_table);
-  root_inode = (inode_t*)inode_table;
-  dir_inode = (inode_t*)(inode_table + 1 * sizeof(inode_t));
-  Disk_Read(root_inode->data[0], dirent_buffer);
-  dirent = (dirent_t*)dirent_buffer;
 
   assert(result == 0);
-  // assert(inode_bitmap[1] == 0);
-  // assert(root_inode->size == 0 && root_inode->type == 1);
-  // assert(dirent->inode == -1 && strcmp(dirent->fname, "") == 0);
 }
 
 #define TESTS_NUM 7
