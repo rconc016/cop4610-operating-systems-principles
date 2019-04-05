@@ -871,8 +871,24 @@ int File_Read(int fd, void* buffer, int size)
 
 int File_Write(int fd, void* buffer, int size)
 {
-  /* YOUR CODE */
-  return -1;
+  printf("File_Write(%d):\n", fd);
+
+  open_file_t file = open_files[fd];
+
+  if (is_file_open(file.inode) == 0)
+  {
+    dprintf("... error: file %d is not open\n", fd);
+    osErrno = E_BAD_FD;
+    return -1;
+  }
+
+  int index = 0;
+  for (index = 0; index < size; index = index + 1)
+  {
+    
+  }
+
+  return size;
 }
 
 int File_Seek(int fd, int offset)
