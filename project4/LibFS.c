@@ -525,7 +525,6 @@ int remove_inode(int type, int parent_inode, int child_inode)
   int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
   int offset = child_inode-inode_start_entry;
   assert(offset >= 0 && offset < INODES_PER_SECTOR);
-  assert(0 <= offset && offset < INODES_PER_SECTOR);
   inode_t* child = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
 
   if (type != child->type)
@@ -882,13 +881,70 @@ int File_Write(int fd, void* buffer, int size)
     return -1;
   }
 
+  // load the disk sector containing the inode
+  int inode_sector = INODE_TABLE_START_SECTOR + file.inode / INODES_PER_SECTOR;
+  char inode_buffer[SECTOR_SIZE];
+  if (Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+  dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
+
+  // get the inode
+  int inode_start_entry = (inode_sector - INODE_TABLE_START_SECTOR) * INODES_PER_SECTOR;
+  int offset = file.inode - inode_start_entry;
+  assert(offset >= 0 && offset < INODES_PER_SECTOR);
+  inode_t* inode = (inode_t*)(inode_buffer + offset * sizeof(inode_t));
+
+  if (inode->type != 0)
+  {
+    dprintf("... error: '%d' is not a file\n", file.inode);
+    osErrno = E_GENERAL;
+    return -1;
+  }
+
+  if (file.size == 0)
+  {
+    int sector = bitmap_first_unused(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, SECTOR_BITMAP_SIZE);
+    if(sector < 0) 
+    {
+      dprintf("... error: sector bitmap is full\n");
+      osErrno = E_NO_SPACE;
+      return -1; 
+    }
+
+    char sector_buffer[SECTOR_SIZE];
+
+    memcpy(sector_buffer, buffer, SECTOR_SIZE);
+    if (Disk_Write(sector, sector_buffer) < 0)
+    {
+      dprintf("... error: failed to write file chunk (sector=%d)", sector);
+      osErrno = E_GENERAL;
+      return -1;
+    }
+
+    file.size = file.size + SECTOR_SIZE;
+    file.pos = file.pos + SECTOR_SIZE;
+    inode->size = file.size;
+    inode->data[0] = sector;
+
+    if (Disk_Write(inode_sector, inode_buffer) < 0)
+    {
+      dprintf("... error: failed to update inode (sector=%d, inode=%d)\n", sector, file.inode);
+      osErrno = E_GENERAL;
+      return -1;
+    }
+
+    dprintf("... file written succesfully (inode=%d, size=%d, pos=%d)\n", file.inode, file.size, file.pos);
+    return size;
+  }
+
+  int max_inode_data_sectors = file.size / SECTOR_SIZE;
+
   int index = 0;
-  for (index = 0; index < size; index = index + 1)
+  for (index = 0; index < max_inode_data_sectors; index = index + 1)
   {
     
   }
 
-  return size;
+  return -1;
 }
 
 int File_Seek(int fd, int offset)
