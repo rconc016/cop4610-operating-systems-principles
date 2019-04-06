@@ -864,8 +864,63 @@ int File_Unlink(char* file)
 
 int File_Read(int fd, void* buffer, int size)
 {
-  /* YOUR CODE */
-  return -1;
+  printf("File_Read(%d):\n", fd);
+
+  open_file_t* file = &open_files[fd];
+
+  if (is_file_open(file->inode) == 0)
+  {
+    dprintf("... error: file %d is not open\n", fd);
+    osErrno = E_BAD_FD;
+    return -1;
+  }
+
+  // load the disk sector containing the inode
+  int inode_sector = INODE_TABLE_START_SECTOR + file->inode / INODES_PER_SECTOR;
+  char inode_buffer[SECTOR_SIZE];
+  if (Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+  dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
+
+  // get the inode
+  int inode_start_entry = (inode_sector - INODE_TABLE_START_SECTOR) * INODES_PER_SECTOR;
+  int offset = file->inode - inode_start_entry;
+  assert(offset >= 0 && offset < INODES_PER_SECTOR);
+  inode_t* inode = (inode_t*)(inode_buffer + offset * sizeof(inode_t));
+
+  if (inode->type != 0)
+  {
+    dprintf("... error: '%d' is not a file\n", file->inode);
+    osErrno = E_GENERAL;
+    return -1;
+  }
+
+  if (file->pos >= file->size || file->pos >= size)
+  {
+    return 0;
+  }
+
+  int num_sectors = file->size / SECTOR_SIZE;
+  int data_sector_index = 0;
+  for (data_sector_index = 0; data_sector_index < num_sectors; data_sector_index = data_sector_index + 1)
+  {
+    int sector = inode->data[data_sector_index];
+    char buff[SECTOR_SIZE];
+    if (Disk_Read(sector, buff) < 0)
+    {
+      dprintf("... error: failed to read data sector (sector=%d)\n", sector);
+      osErrno = E_GENERAL;
+      return -1;
+    }
+
+    char *char_buffer = buffer;
+    memcpy(&char_buffer[SECTOR_SIZE * data_sector_index], buff, size);
+
+    file->pos = size;
+
+    return size;
+  }
+
+  return 0;
 }
 
 int File_Write(int fd, void* buffer, int size)
