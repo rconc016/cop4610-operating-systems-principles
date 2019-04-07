@@ -936,14 +936,16 @@ int File_Read(int fd, void* buffer, int size)
     return -1;
   }
 
-  if (file->pos >= file->size || file->pos >= size)
+  if (file->pos >= file->size)
   {
     return 0;
   }
 
-  int num_sectors = file->size / SECTOR_SIZE;
+  int num_sectors = ceil((double)size / SECTOR_SIZE);
+  int starting_sector = file->pos / SECTOR_SIZE;
+
   int data_sector_index = 0;
-  for (data_sector_index = 0; data_sector_index < num_sectors; data_sector_index = data_sector_index + 1)
+  for (data_sector_index = starting_sector; data_sector_index < num_sectors; data_sector_index = data_sector_index + 1)
   {
     int sector = inode->data[data_sector_index];
     char buff[SECTOR_SIZE];
@@ -955,9 +957,9 @@ int File_Read(int fd, void* buffer, int size)
     }
 
     char *char_buffer = buffer;
-    memcpy(&char_buffer[SECTOR_SIZE * data_sector_index], buff, size);
+    memcpy(char_buffer, &buff[file->pos % SECTOR_SIZE], size);
 
-    file->pos = size;
+    file->pos = file->pos + size;
 
     return size;
   }
@@ -969,9 +971,9 @@ int File_Write(int fd, void* buffer, int size)
 {
   printf("File_Write(%d):\n", fd);
 
-  open_file_t file = open_files[fd];
+  open_file_t *file = &open_files[fd];
 
-  if (is_file_open(file.inode) == 0)
+  if (is_file_open(file->inode) == 0)
   {
     dprintf("... error: file %d is not open\n", fd);
     osErrno = E_BAD_FD;
@@ -979,25 +981,28 @@ int File_Write(int fd, void* buffer, int size)
   }
 
   // load the disk sector containing the inode
-  int inode_sector = INODE_TABLE_START_SECTOR + file.inode / INODES_PER_SECTOR;
+  int inode_sector = INODE_TABLE_START_SECTOR + file->inode / INODES_PER_SECTOR;
   char inode_buffer[SECTOR_SIZE];
   if (Disk_Read(inode_sector, inode_buffer) < 0) return -1;
   dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
 
   // get the inode
   int inode_start_entry = (inode_sector - INODE_TABLE_START_SECTOR) * INODES_PER_SECTOR;
-  int offset = file.inode - inode_start_entry;
+  int offset = file->inode - inode_start_entry;
   assert(offset >= 0 && offset < INODES_PER_SECTOR);
   inode_t* inode = (inode_t*)(inode_buffer + offset * sizeof(inode_t));
 
   if (inode->type != 0)
   {
-    dprintf("... error: '%d' is not a file\n", file.inode);
+    dprintf("... error: '%d' is not a file\n", file->inode);
     osErrno = E_GENERAL;
     return -1;
   }
 
-  if (file.size == 0)
+  int max_inode_data_sectors = ceil((double)size / SECTOR_SIZE);
+
+  int sector_count = 0;
+  for (sector_count = 0; sector_count < max_inode_data_sectors; sector_count = sector_count + 1)
   {
     int sector = bitmap_first_unused(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, SECTOR_BITMAP_SIZE);
     if(sector < 0) 
@@ -1007,9 +1012,14 @@ int File_Write(int fd, void* buffer, int size)
       return -1; 
     }
 
-    char sector_buffer[SECTOR_SIZE];
+    int buffer_size = min(size, SECTOR_SIZE);
 
-    memcpy(sector_buffer, buffer, SECTOR_SIZE);
+    char sector_buffer[SECTOR_SIZE];
+    memset(sector_buffer, 0, SECTOR_SIZE);
+
+    char *char_buffer = buffer;
+    memcpy(sector_buffer, &char_buffer[file->pos % size], buffer_size);
+
     if (Disk_Write(sector, sector_buffer) < 0)
     {
       dprintf("... error: failed to write file chunk (sector=%d)", sector);
@@ -1017,31 +1027,22 @@ int File_Write(int fd, void* buffer, int size)
       return -1;
     }
 
-    file.size = file.size + SECTOR_SIZE;
-    file.pos = file.pos + SECTOR_SIZE;
-    inode->size = file.size;
-    inode->data[0] = sector;
+    file->size = file->size + buffer_size;
+    file->pos = file->pos + buffer_size;
+
+    inode->size = file->size;
+    inode->data[sector_count] = sector;
 
     if (Disk_Write(inode_sector, inode_buffer) < 0)
     {
-      dprintf("... error: failed to update inode (sector=%d, inode=%d)\n", sector, file.inode);
+      dprintf("... error: failed to update inode (sector=%d, inode=%d)\n", sector, file->inode);
       osErrno = E_GENERAL;
       return -1;
     }
-
-    dprintf("... file written succesfully (inode=%d, size=%d, pos=%d)\n", file.inode, file.size, file.pos);
-    return size;
   }
 
-  int max_inode_data_sectors = file.size / SECTOR_SIZE;
-
-  int index = 0;
-  for (index = 0; index < max_inode_data_sectors; index = index + 1)
-  {
-    
-  }
-
-  return -1;
+  dprintf("... file written succesfully (inode=%d, size=%d, pos=%d)\n", file->inode, file->size, file->pos);
+  return size;
 }
 
 int File_Seek(int fd, int offset)
