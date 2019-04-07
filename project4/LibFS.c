@@ -624,6 +624,48 @@ int new_file_fd()
   return -1;
 }
 
+/**
+ * @brief Rounds up a decimal number to the
+ * nearest whole number. If the number is already
+ * a whole number, if will be left untouched.
+ * 
+ * @param number The number to ceil.
+ * @return double Rounded up number.
+ */
+double ceil(double number)
+{
+  const double one = 1.0;
+  double decimal_part = number;
+
+  while (decimal_part >= one)
+  {
+    decimal_part = decimal_part - one;
+  }
+
+  if (decimal_part > 0)
+  {
+    return (number - decimal_part) + one;
+  }
+  return number;
+}
+
+/**
+ * @brief Returns the smaller number
+ * between a and b.
+ * 
+ * @param a The first number.
+ * @param b The second number.
+ * @return int Smaller number a or b.
+ */
+int min(int a, int b)
+{
+  if (a <= b)
+  {
+    return a;
+  }
+  return b;
+}
+
 /* end of internal helper functions, start of API functions */
 
 int FS_Boot(char* backstore_fname)
