@@ -7,7 +7,7 @@
 #include "LibFS.h"
 
 // set to 1 to have detailed debug print-outs and 0 to have none
-#define FSDEBUG 1
+#define FSDEBUG 0
 
 #if FSDEBUG
 #define dprintf printf
@@ -941,8 +941,10 @@ int File_Read(int fd, void* buffer, int size)
     return 0;
   }
 
-  int num_sectors = ceil((double)size / SECTOR_SIZE);
+  memset(buffer, 0, size);
+
   int starting_sector = file->pos / SECTOR_SIZE;
+  int num_sectors = ceil((double)size / SECTOR_SIZE) + starting_sector;
 
   int data_sector_index = 0;
   for (data_sector_index = starting_sector; data_sector_index < num_sectors; data_sector_index = data_sector_index + 1)
@@ -956,10 +958,11 @@ int File_Read(int fd, void* buffer, int size)
       return -1;
     }
 
+    int buffer_size = min(file->size - file->pos, size);
     char *char_buffer = buffer;
-    memcpy(char_buffer, &buff[file->pos % SECTOR_SIZE], size);
+    memcpy(char_buffer, &buff[file->pos % SECTOR_SIZE], buffer_size);
 
-    file->pos = file->pos + size;
+    file->pos = file->pos + buffer_size;
 
     return size;
   }
@@ -999,10 +1002,11 @@ int File_Write(int fd, void* buffer, int size)
     return -1;
   }
 
-  int max_inode_data_sectors = ceil((double)size / SECTOR_SIZE);
+  int starting_sector = file->pos / SECTOR_SIZE;
+  int max_inode_data_sectors = ceil((double)size / SECTOR_SIZE) + starting_sector;
 
   int sector_count = 0;
-  for (sector_count = 0; sector_count < max_inode_data_sectors; sector_count = sector_count + 1)
+  for (sector_count = starting_sector; sector_count < max_inode_data_sectors; sector_count = sector_count + 1)
   {
     int sector = bitmap_first_unused(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, SECTOR_BITMAP_SIZE);
     if(sector < 0) 
