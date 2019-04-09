@@ -1051,8 +1051,26 @@ int File_Write(int fd, void* buffer, int size)
 
 int File_Seek(int fd, int offset)
 {
-  /* YOUR CODE */
-  return 0;
+  printf("File_Seek(%d):\n", fd);
+
+  open_file_t *file = &open_files[fd];
+
+  if (is_file_open(file->inode) == 0)
+  {
+    dprintf("... error: file %d is not open\n", fd);
+    osErrno = E_BAD_FD;
+    return -1;
+  }
+
+  if (offset < 0 || offset > file->size)
+  {
+    dprintf("... error: seek offset %d is invalid\n", offset);
+    osErrno = E_SEEK_OUT_OF_BOUNDS;
+    return -1;
+  }
+
+  file->pos = offset;
+  return offset;
 }
 
 int File_Close(int fd)
