@@ -1106,7 +1106,47 @@ int Dir_Unlink(char* path)
 
 int Dir_Size(char* path)
 {
-  /* YOUR CODE */
+  int child_inode;
+  char last_fname[MAX_NAME];
+  int parent_inode = follow_path(path, &child_inode, last_fname);
+
+  if(parent_inode >= 0) 
+  {
+    if(child_inode >= 0) 
+    {
+      dprintf("... file/directory '%s' already exists, failed to create\n", pathname);
+      osErrno = E_CREATE;
+      return -1;
+    } 
+    else 
+    { 
+      // load the disk sector containing the child inode
+      int inode_sector = INODE_TABLE_START_SECTOR+child_inode/INODES_PER_SECTOR;
+      char inode_buffer[SECTOR_SIZE];
+      if(Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+      dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
+
+      // get the inode
+      int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
+      int offset = child_inode-inode_start_entry;
+      assert(0 <= offset && offset < INODES_PER_SECTOR);
+      inode_t* inode = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
+
+      if (inode->type != 1)
+      {
+        return -1;
+      }
+
+      return inode->size;
+    }
+  } 
+  
+  else 
+  {
+    dprintf("... error: something wrong with the file/path: '%s'\n", pathname);
+    osErrno = E_CREATE;
+    return -1;
+  }
   return 0;
 }
 
