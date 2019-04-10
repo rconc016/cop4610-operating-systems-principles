@@ -1137,7 +1137,7 @@ int Dir_Size(char* path)
         return -1;
       }
 
-      return inode->size;
+      return inode->size * sizeof(dirent_t);
     }
   } 
   
