@@ -1114,7 +1114,7 @@ int Dir_Size(char* path)
   {
     if(child_inode >= 0) 
     {
-      dprintf("... file/directory '%s' already exists, failed to create\n", pathname);
+      dprintf("... file/directory '%s' already exists, failed to create\n", path);
       osErrno = E_CREATE;
       return -1;
     } 
@@ -1134,6 +1134,8 @@ int Dir_Size(char* path)
 
       if (inode->type != 1)
       {
+        dprintf("... file is not a directory (inode=%d, file=%s)\n", inode, path);
+        osErrno = E_GENERAL;
         return -1;
       }
 
@@ -1143,16 +1145,81 @@ int Dir_Size(char* path)
   
   else 
   {
-    dprintf("... error: something wrong with the file/path: '%s'\n", pathname);
+    dprintf("... error: something wrong with the file/path: '%s'\n", path);
     osErrno = E_CREATE;
     return -1;
   }
-  return 0;
 }
 
 int Dir_Read(char* path, void* buffer, int size)
 {
-  /* YOUR CODE */
-  return -1;
+  int child_inode;
+  char last_fname[MAX_NAME];
+  int parent_inode = follow_path(path, &child_inode, last_fname);
+
+  if(parent_inode >= 0) 
+  {
+    if(child_inode >= 0) 
+    {
+      dprintf("... file/directory '%s' already exists, failed to create\n", path);
+      osErrno = E_CREATE;
+      return -1;
+    } 
+    else 
+    { 
+      // load the disk sector containing the child inode
+      int inode_sector = INODE_TABLE_START_SECTOR+child_inode/INODES_PER_SECTOR;
+      char inode_buffer[SECTOR_SIZE];
+      if(Disk_Read(inode_sector, inode_buffer) < 0) return -1;
+      dprintf("... load inode table for child inode from disk sector %d\n", inode_sector);
+
+      // get the inode
+      int inode_start_entry = (inode_sector-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
+      int offset = child_inode-inode_start_entry;
+      assert(0 <= offset && offset < INODES_PER_SECTOR);
+      inode_t* inode = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
+
+      if (inode->type != 1)
+      {
+        dprintf("... file is not a directory (inode=%d, file=%s)\n", inode, path);
+        osErrno = E_GENERAL;
+        return -1;
+      }
+
+      int requested_dirents = size / sizeof(dirent_t);
+      int actual_dirents = inode->size * sizeof(dirent_t);
+
+      if (requested_dirents < actual_dirents)
+      {
+        dprintf("... buffer is not large enough (requested=%d, actual=%d)\n", requested_dirents, actual_dirents);
+        osErrno = E_BUFFER_TOO_SMALL;
+        return -1;
+      }
+
+      int groups = ceil((double)inode->size / DIRENTS_PER_SECTOR);
+
+      int group_index = 0;
+      for (group_index = 0; group_index < groups; group_index = group_index + 1)
+      {
+        int sector = inode->data[group_index];
+        char buffer[SECTOR_SIZE];
+
+        if (Disk_Read(sector, buffer) < 0)
+        {
+          osErrno = E_GENERAL;
+          return -1;
+        }
+      }
+
+      return inode->size * sizeof(dirent_t);
+    }
+  } 
+  
+  else 
+  {
+    dprintf("... error: something wrong with the file/path: '%s'\n", path);
+    osErrno = E_CREATE;
+    return -1;
+  }
 }
 
