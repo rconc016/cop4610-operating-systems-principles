@@ -1209,6 +1209,12 @@ int Dir_Read(char* path, void* buffer, int size)
           osErrno = E_GENERAL;
           return -1;
         }
+
+        int dirent_index = 0;
+        for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR; dirent_index = dirent_index + 1)
+        {
+          dirent_t *dirent = (dirent_t*)(&buffer[dirent_index]);
+        }
       }
 
       return inode->size * sizeof(dirent_t);
