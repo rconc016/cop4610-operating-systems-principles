@@ -1100,7 +1100,15 @@ int Dir_Create(char* path)
 
 int Dir_Unlink(char* path)
 {
-  dprintf("Dir_Unlink('%s'):\n", path);  
+  dprintf("Dir_Unlink('%s'):\n", path);
+
+  if (strcmp(path, "/") == 0)
+  {
+    dprintf("error: attempting to unlink root directory");
+    osErrno = E_ROOT_DIR;
+    return -1;
+  }
+
   return unlink_file_or_directory(1, path);
 }
 
