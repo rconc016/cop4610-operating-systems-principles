@@ -990,6 +990,13 @@ int File_Write(int fd, void* buffer, int size)
     return -1;
   }
 
+  if (file->size + size >= MAX_FILE_SIZE)
+  {
+    dprintf("... error: file %d would exceed maximum file size %d\n", fd, MAX_FILE_SIZE);
+    osErrno = E_FILE_TOO_BIG;
+    return -1;
+  }
+
   // load the disk sector containing the inode
   int inode_sector = INODE_TABLE_START_SECTOR + file->inode / INODES_PER_SECTOR;
   char inode_buffer[SECTOR_SIZE];
