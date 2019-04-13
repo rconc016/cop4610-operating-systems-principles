@@ -264,7 +264,7 @@ static int illegal_filename(char* name)
     index = index + 1;
   }
 
-  if (index > MAX_NAME)
+  if (index > MAX_NAME - 1)
   {
     return ILLEGAL;
   }
@@ -337,6 +337,11 @@ static int follow_path(char* path, int* last_inode, char* last_fname)
   }
   if(path[0] != '/') {
     dprintf("... '%s' not absolute path\n", path);
+    return -1;
+  }
+  if (strlen(path) >= MAX_PATH)
+  {
+    dprintf("... path is too long '%s'\n", path);
     return -1;
   }
   
