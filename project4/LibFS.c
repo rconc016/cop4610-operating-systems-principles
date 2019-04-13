@@ -926,7 +926,7 @@ int File_Unlink(char* file)
 
 int File_Read(int fd, void* buffer, int size)
 {
-  printf("File_Read(%d):\n", fd);
+  dprintf("File_Read(%d):\n", fd);
 
   open_file_t* file = &open_files[fd];
 
@@ -992,7 +992,7 @@ int File_Read(int fd, void* buffer, int size)
 
 int File_Write(int fd, void* buffer, int size)
 {
-  printf("File_Write(%d):\n", fd);
+  dprintf("File_Write(%d):\n", fd);
 
   open_file_t *file = &open_files[fd];
 
@@ -1078,7 +1078,7 @@ int File_Write(int fd, void* buffer, int size)
 
 int File_Seek(int fd, int offset)
 {
-  printf("File_Seek(%d):\n", fd);
+  dprintf("File_Seek(%d):\n", fd);
 
   open_file_t *file = &open_files[fd];
 
