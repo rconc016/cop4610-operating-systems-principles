@@ -404,6 +404,14 @@ int add_inode(int type, int parent_inode, char* file)
     dprintf("... error: inode table is full\n");
     return -1; 
   }
+
+  if (child_inode > MAX_FILES)
+  {
+    dprintf("... error: maximum number of files exceeded\n");
+    bitmap_reset(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, child_inode);
+    return -1; 
+  }
+
   dprintf("... new child inode %d\n", child_inode);
 
   // load the disk sector containing the child inode
