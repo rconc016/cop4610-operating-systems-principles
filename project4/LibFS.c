@@ -869,6 +869,13 @@ int unlink_file_or_directory(int type, char* path)
   {
     if (child_inode >= 0) 
     {
+      if (is_file_open(child_inode) == 1)
+      {
+        dprintf("... file is currently in use: %d\n", child_inode);
+        osErrno = E_FILE_IN_USE;
+        return -1;
+      }
+
       if (remove_inode(type, parent_inode, child_inode) >= 0)
       {
         dprintf("... successfully unlinked file/directory: '%s'\n", path);
@@ -1104,7 +1111,7 @@ int Dir_Unlink(char* path)
 
   if (strcmp(path, "/") == 0)
   {
-    dprintf("error: attempting to unlink root directory");
+    dprintf("... error: attempting to unlink root directory\n");
     osErrno = E_ROOT_DIR;
     return -1;
   }
