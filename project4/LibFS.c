@@ -7,7 +7,7 @@
 #include "LibFS.h"
 
 // set to 1 to have detailed debug print-outs and 0 to have none
-#define FSDEBUG 0
+#define FSDEBUG 1
 
 #if FSDEBUG
 #define dprintf printf
@@ -1106,15 +1106,17 @@ int Dir_Unlink(char* path)
 
 int Dir_Size(char* path)
 {
+  dprintf("Dir_Size('%s'):\n", path);  
+
   int child_inode;
   char last_fname[MAX_NAME];
   int parent_inode = follow_path(path, &child_inode, last_fname);
 
   if(parent_inode >= 0) 
   {
-    if(child_inode >= 0) 
+    if(child_inode < 0) 
     {
-      dprintf("... file/directory '%s' already exists, failed to create\n", path);
+      dprintf("... directory '%s' does not exist\n", path);
       osErrno = E_CREATE;
       return -1;
     } 
@@ -1134,7 +1136,7 @@ int Dir_Size(char* path)
 
       if (inode->type != 1)
       {
-        dprintf("... file is not a directory (inode=%d, file=%s)\n", inode, path);
+        dprintf("... file is not a directory (inode=%d, file=%s)\n", child_inode, path);
         osErrno = E_GENERAL;
         return -1;
       }
@@ -1153,15 +1155,18 @@ int Dir_Size(char* path)
 
 int Dir_Read(char* path, void* buffer, int size)
 {
+  dprintf("Dir_Read('%s'):\n", path);  
+
   int child_inode;
   char last_fname[MAX_NAME];
   int parent_inode = follow_path(path, &child_inode, last_fname);
+  unsigned long dirent_size = sizeof(dirent_t);
 
   if(parent_inode >= 0) 
   {
-    if(child_inode >= 0) 
+    if(child_inode < 0) 
     {
-      dprintf("... file/directory '%s' already exists, failed to create\n", path);
+      dprintf("... directory '%s' does not exist\n", path);
       osErrno = E_CREATE;
       return -1;
     } 
@@ -1181,17 +1186,16 @@ int Dir_Read(char* path, void* buffer, int size)
 
       if (inode->type != 1)
       {
-        dprintf("... file is not a directory (inode=%d, file=%s)\n", inode, path);
+        dprintf("... file is not a directory (inode=%d, file=%s)\n", child_inode, path);
         osErrno = E_GENERAL;
         return -1;
       }
 
-      int requested_dirents = size / sizeof(dirent_t);
-      int actual_dirents = inode->size * sizeof(dirent_t);
+      int actual_dirents = inode->size * dirent_size;
 
-      if (requested_dirents < actual_dirents)
+      if (size < actual_dirents)
       {
-        dprintf("... buffer is not large enough (requested=%d, actual=%d)\n", requested_dirents, actual_dirents);
+        dprintf("... buffer is not large enough (requested=%d, actual=%d)\n", size, actual_dirents);
         osErrno = E_BUFFER_TOO_SMALL;
         return -1;
       }
@@ -1202,22 +1206,23 @@ int Dir_Read(char* path, void* buffer, int size)
       for (group_index = 0; group_index < groups; group_index = group_index + 1)
       {
         int sector = inode->data[group_index];
-        char buffer[SECTOR_SIZE];
+        char dirent_buffer[SECTOR_SIZE];
 
-        if (Disk_Read(sector, buffer) < 0)
+        if (Disk_Read(sector, dirent_buffer) < 0)
         {
           osErrno = E_GENERAL;
           return -1;
         }
 
         int dirent_index = 0;
-        for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR; dirent_index = dirent_index + 1)
+        for (dirent_index = 0; dirent_index < size / dirent_size; dirent_index = dirent_index + 1)
         {
-          dirent_t *dirent = (dirent_t*)(&buffer[dirent_index]);
+          int offset = dirent_index * dirent_size;
+          memcpy(buffer + offset, dirent_buffer + offset, dirent_size);
         }
       }
 
-      return inode->size * sizeof(dirent_t);
+      return inode->size;
     }
   } 
   
