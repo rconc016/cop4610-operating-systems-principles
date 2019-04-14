@@ -1237,6 +1237,9 @@ int Dir_Read(char* path, void* buffer, int size)
 
       int groups = ceil((double)inode->size / DIRENTS_PER_SECTOR);
 
+      int buffer_offset = 0;
+      int remaining_dirents = inode->size;
+
       int group_index = 0;
       for (group_index = 0; group_index < groups; group_index = group_index + 1)
       {
@@ -1250,11 +1253,13 @@ int Dir_Read(char* path, void* buffer, int size)
         }
 
         int dirent_index = 0;
-        for (dirent_index = 0; dirent_index < size / dirent_size; dirent_index = dirent_index + 1)
+        for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR && dirent_index < remaining_dirents; dirent_index = dirent_index + 1)
         {
-          int offset = dirent_index * dirent_size;
-          memcpy(buffer + offset, dirent_buffer + offset, dirent_size);
+          memcpy(buffer + buffer_offset * dirent_size, dirent_buffer + dirent_index * dirent_size, dirent_size);
+          buffer_offset = buffer_offset + 1;
         }
+
+        remaining_dirents = remaining_dirents - dirent_index;
       }
 
       return inode->size;
