@@ -112,6 +112,31 @@ static char bs_filename[1024];
 
 /* the following functions are internal helper functions */
 
+/**
+ * @brief Rounds up a decimal number to the
+ * nearest whole number. If the number is already
+ * a whole number, if will be left untouched.
+ * 
+ * @param number The number to ceil.
+ * @return double Rounded up number.
+ */
+double ceil(double number)
+{
+  const double one = 1.0;
+  double decimal_part = number;
+
+  while (decimal_part >= one)
+  {
+    decimal_part = decimal_part - one;
+  }
+
+  if (decimal_part > 0)
+  {
+    return (number - decimal_part) + one;
+  }
+  return number;
+}
+
 // check magic number in the superblock; return 1 if OK, and 0 if not
 static int check_magic()
 {
@@ -564,10 +589,14 @@ int remove_inode(int type, int parent_inode, int child_inode)
   dprintf("... get parent inode %d (size=%d, type=%d)\n",
 	 parent_inode, parent->size, parent->type);
 
-  int group = parent->size/DIRENTS_PER_SECTOR;
+  int groups = ceil((double)parent->size / DIRENTS_PER_SECTOR);
+  int dirent_found = 0;
+
+  dirent_t* prev_dirent = NULL;
+  dirent_t* dirent;
 
   int sector_index = 0;
-  for (sector_index = 0; sector_index < MAX_SECTORS_PER_FILE; sector_index = sector_index + 1)
+  for (sector_index = 0; sector_index < groups; sector_index = sector_index + 1)
   {
     char dirents_buffer[SECTOR_SIZE];
     if (Disk_Read(parent->data[sector_index], dirents_buffer) < 0)
@@ -578,28 +607,54 @@ int remove_inode(int type, int parent_inode, int child_inode)
     int dirent_index = 0;
     for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR; dirent_index = dirent_index + 1)
     {
-      dirent_t* dirent = &((dirent_t*)dirents_buffer)[dirent_index];
+      dirent = &((dirent_t*)dirents_buffer)[dirent_index];
+      //printf("*** debug: (index=%d, inode=%d, fname=%s)\n", dirent_index, dirent->inode, dirent->fname);
+
       if (dirent->inode == child_inode)
       {
         memset(dirent->fname, 0, MAX_NAME);
         dirent->inode = -1;
 
-        if (Disk_Write(parent->data[sector_index], dirents_buffer) < 0)
+        dirent_found = 1;
+      }
+
+      else if (dirent_found == 1)
+      {
+        if (prev_dirent == NULL)
         {
-          return -1;
+          prev_dirent = &((dirent_t*)dirents_buffer)[dirent_index - 1];
         }
 
-        dirent_index = DIRENTS_PER_SECTOR;
-        sector_index = MAX_SECTORS_PER_FILE;
+        printf("*** debug: sector index=%d, dirent_index=%d\n", sector_index, dirent_index);
+        printf("*** debug: prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
+        printf("*** debug: current (inode=%d, fname=%s)\n\n", dirent->inode, dirent->fname);
+
+        prev_dirent->inode = dirent->inode;
+        memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
+
+        prev_dirent = NULL;
+
+        //printf("*** debug: copied prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
       }
     }
+
+    if (Disk_Write(parent->data[sector_index], dirents_buffer) < 0)
+    {
+      return -1;
+    }
+
+        //printf("*** debug: prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
+        //printf("*** debug: current (inode=%d, fname=%s)\n", dirent->inode, dirent->fname);
+
+    prev_dirent = dirent;
+    printf("*** debug: second prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
   }
 
-  if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
-  {
-    dprintf("... error: failed to reset inode bitmap index %d\n", child_inode);
-    return -1;
-  }
+  // if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
+  // {
+  //   dprintf("... error: failed to reset inode bitmap index %d\n", child_inode);
+  //   return -1;
+  // }
 
   // update parent inode and write to disk
   parent->size--;
@@ -635,31 +690,6 @@ int new_file_fd()
       return i;
   }
   return -1;
-}
-
-/**
- * @brief Rounds up a decimal number to the
- * nearest whole number. If the number is already
- * a whole number, if will be left untouched.
- * 
- * @param number The number to ceil.
- * @return double Rounded up number.
- */
-double ceil(double number)
-{
-  const double one = 1.0;
-  double decimal_part = number;
-
-  while (decimal_part >= one)
-  {
-    decimal_part = decimal_part - one;
-  }
-
-  if (decimal_part > 0)
-  {
-    return (number - decimal_part) + one;
-  }
-  return number;
 }
 
 /**
