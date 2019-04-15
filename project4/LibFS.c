@@ -587,13 +587,11 @@ int remove_inode(int type, int parent_inode, int child_inode)
   assert(0 <= offset && offset < INODES_PER_SECTOR);
   inode_t* parent = (inode_t*)(inode_buffer+offset*sizeof(inode_t));
   dprintf("... get parent inode %d (size=%d, type=%d)\n",
-	 parent_inode, parent->size, parent->type);
+	parent_inode, parent->size, parent->type);
 
   int groups = ceil((double)parent->size / DIRENTS_PER_SECTOR);
   int dirent_found = 0;
-
-  dirent_t* prev_dirent = NULL;
-  dirent_t* dirent;
+  int dirent_count = 0;
 
   int sector_index = 0;
   for (sector_index = 0; sector_index < groups; sector_index = sector_index + 1)
@@ -605,10 +603,9 @@ int remove_inode(int type, int parent_inode, int child_inode)
     }
 
     int dirent_index = 0;
-    for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR; dirent_index = dirent_index + 1)
+    for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR /*&& dirent_count < parent->size*/; dirent_index = dirent_index + 1)
     {
-      dirent = &((dirent_t*)dirents_buffer)[dirent_index];
-      //printf("*** debug: (index=%d, inode=%d, fname=%s)\n", dirent_index, dirent->inode, dirent->fname);
+      dirent_t* dirent = &((dirent_t*)dirents_buffer)[dirent_index];
 
       if (dirent->inode == child_inode)
       {
@@ -620,21 +617,30 @@ int remove_inode(int type, int parent_inode, int child_inode)
 
       else if (dirent_found == 1)
       {
-        if (prev_dirent == NULL)
-        {
-          prev_dirent = &((dirent_t*)dirents_buffer)[dirent_index - 1];
-        }
+        dirent_t* prev_dirent = &((dirent_t*)dirents_buffer)[dirent_index - 1];
 
-        printf("*** debug: sector index=%d, dirent_index=%d\n", sector_index, dirent_index);
-        printf("*** debug: prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
-        printf("*** debug: current (inode=%d, fname=%s)\n\n", dirent->inode, dirent->fname);
+        if (dirent_index == 0 && sector_index > 0)
+        {
+          char prev_buffer[SECTOR_SIZE];
+          if (Disk_Read(parent->data[sector_index - 1], prev_buffer) < 0)
+          {
+            return -1;
+          }
+
+          prev_dirent = &((dirent_t*)prev_buffer)[DIRENTS_PER_SECTOR - 1];
+          prev_dirent->inode = dirent->inode;
+          memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
+
+          if (Disk_Write(parent->data[sector_index - 1], prev_buffer) < 0)
+          {
+            return -1;
+          }
+        }
 
         prev_dirent->inode = dirent->inode;
         memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
 
-        prev_dirent = NULL;
-
-        //printf("*** debug: copied prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
+        dirent_count = dirent_count + 1;
       }
     }
 
@@ -642,12 +648,6 @@ int remove_inode(int type, int parent_inode, int child_inode)
     {
       return -1;
     }
-
-        //printf("*** debug: prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
-        //printf("*** debug: current (inode=%d, fname=%s)\n", dirent->inode, dirent->fname);
-
-    prev_dirent = dirent;
-    printf("*** debug: second prev (inode=%d, fname=%s)\n", prev_dirent->inode, prev_dirent->fname);
   }
 
   // if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
