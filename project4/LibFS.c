@@ -542,6 +542,103 @@ int create_file_or_directory(int type, char* pathname)
   }
 }
 
+/**
+ * @brief Resets the sector bitmap bits assigned to the inode.
+ * 
+ * @param inode inode being removed.
+ * @return int 0 if the operation was successful, -1 otherwise.
+ */
+int remove_file_contents(inode_t* inode)
+{
+  int groups = ceil((double)inode->size / DIRENTS_PER_SECTOR);
+
+  int sector_index = 0;
+  for (sector_index = 0; sector_index < groups; sector_index = sector_index + 1)
+  {
+    if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, inode->data[sector_index]) < 0)
+    {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * @brief Removes the target inode from the parent directory
+ * and shifts the rest of the entries back.
+ * 
+ * @param parent The parent inode containing the file being removed.
+ * @param target_inode The inode of the file being removed.
+ * @return int 0 if the operation was successful, -1 otherwise.
+ */
+int remove_directory_entry(inode_t *parent, int target_inode)
+{
+  int groups = ceil((double)parent->size / DIRENTS_PER_SECTOR);
+  int dirent_found = 0;
+  int dirent_count = 0;
+
+  int sector_index = 0;
+  for (sector_index = 0; sector_index < groups; sector_index = sector_index + 1)
+  {
+    char dirents_buffer[SECTOR_SIZE];
+    if (Disk_Read(parent->data[sector_index], dirents_buffer) < 0)
+    {
+      return -1;
+    }
+
+    int dirent_index = 0;
+    for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR && dirent_count < parent->size; dirent_index = dirent_index + 1)
+    {
+      dirent_t* dirent = &((dirent_t*)dirents_buffer)[dirent_index];
+
+      if (dirent->inode == target_inode)
+      {
+        memset(dirent->fname, 0, MAX_NAME);
+        dirent->inode = -1;
+
+        dirent_found = 1;
+      }
+
+      else if (dirent_found == 1)
+      {
+        dirent_t* prev_dirent = &((dirent_t*)dirents_buffer)[dirent_index - 1];
+
+        if (dirent_index == 0 && sector_index > 0)
+        {
+          char prev_buffer[SECTOR_SIZE];
+          if (Disk_Read(parent->data[sector_index - 1], prev_buffer) < 0)
+          {
+            return -1;
+          }
+
+          prev_dirent = &((dirent_t*)prev_buffer)[DIRENTS_PER_SECTOR - 1];
+          prev_dirent->inode = dirent->inode;
+          memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
+
+          if (Disk_Write(parent->data[sector_index - 1], prev_buffer) < 0)
+          {
+            return -1;
+          }
+        }
+
+        prev_dirent->inode = dirent->inode;
+        memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
+
+        dirent_count = dirent_count + 1;
+      }
+    }
+
+    if (Disk_Write(parent->data[sector_index], dirents_buffer) < 0)
+    {
+      return -1;
+    }
+  }
+
+  parent->size--;
+  return 0;
+}
+
 // remove the child from parent; the function is called by both
 // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
 // -1 if general error, -2 if directory not empty, -3 if wrong type
@@ -589,65 +686,19 @@ int remove_inode(int type, int parent_inode, int child_inode)
   dprintf("... get parent inode %d (size=%d, type=%d)\n",
 	parent_inode, parent->size, parent->type);
 
-  int groups = ceil((double)parent->size / DIRENTS_PER_SECTOR);
-  int dirent_found = 0;
-  int dirent_count = 0;
-
-  int sector_index = 0;
-  for (sector_index = 0; sector_index < groups; sector_index = sector_index + 1)
+  if (type == 0)
   {
-    char dirents_buffer[SECTOR_SIZE];
-    if (Disk_Read(parent->data[sector_index], dirents_buffer) < 0)
+    if (remove_file_contents() < 0)
     {
+      dprintf("error: failed to remove file contents\n");
       return -1;
     }
+  }
 
-    int dirent_index = 0;
-    for (dirent_index = 0; dirent_index < DIRENTS_PER_SECTOR /*&& dirent_count < parent->size*/; dirent_index = dirent_index + 1)
-    {
-      dirent_t* dirent = &((dirent_t*)dirents_buffer)[dirent_index];
-
-      if (dirent->inode == child_inode)
-      {
-        memset(dirent->fname, 0, MAX_NAME);
-        dirent->inode = -1;
-
-        dirent_found = 1;
-      }
-
-      else if (dirent_found == 1)
-      {
-        dirent_t* prev_dirent = &((dirent_t*)dirents_buffer)[dirent_index - 1];
-
-        if (dirent_index == 0 && sector_index > 0)
-        {
-          char prev_buffer[SECTOR_SIZE];
-          if (Disk_Read(parent->data[sector_index - 1], prev_buffer) < 0)
-          {
-            return -1;
-          }
-
-          prev_dirent = &((dirent_t*)prev_buffer)[DIRENTS_PER_SECTOR - 1];
-          prev_dirent->inode = dirent->inode;
-          memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
-
-          if (Disk_Write(parent->data[sector_index - 1], prev_buffer) < 0)
-          {
-            return -1;
-          }
-        }
-
-        prev_dirent->inode = dirent->inode;
-        memcpy(prev_dirent->fname, dirent->fname, MAX_NAME);
-
-        dirent_count = dirent_count + 1;
-      }
-    }
-
-    if (Disk_Write(parent->data[sector_index], dirents_buffer) < 0)
-    {
-      return -1;
-    }
+  if (remove_directory_entry(parent, child_inode) < 0)
+  {
+    dprintf("error: failed to remove parent directory entry\n");
+    return -1;
   }
 
   // if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
@@ -656,8 +707,7 @@ int remove_inode(int type, int parent_inode, int child_inode)
   //   return -1;
   // }
 
-  // update parent inode and write to disk
-  parent->size--;
+  // write to disk
   if (Disk_Write(inode_sector, inode_buffer) < 0) return -1;
   dprintf("... update parent inode on disk sector %d\n", inode_sector);
 
