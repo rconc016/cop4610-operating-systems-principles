@@ -688,7 +688,7 @@ int remove_inode(int type, int parent_inode, int child_inode)
 
   if (type == 0)
   {
-    if (remove_file_contents() < 0)
+    if (remove_file_contents(child) < 0)
     {
       dprintf("error: failed to remove file contents\n");
       return -1;
