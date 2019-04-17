@@ -701,12 +701,6 @@ int remove_inode(int type, int parent_inode, int child_inode)
     return -1;
   }
 
-  // if (bitmap_reset(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, parent->data[group]) < 0)
-  // {
-  //   dprintf("... error: failed to reset inode bitmap index %d\n", child_inode);
-  //   return -1;
-  // }
-
   // write to disk
   if (Disk_Write(inode_sector, inode_buffer) < 0) return -1;
   dprintf("... update parent inode on disk sector %d\n", inode_sector);
